@@ -1,4 +1,4 @@
-def readNumber(line, index):
+def readNumber(line, index, num):
     number = 0
     flag = 0
     keta = 1
@@ -10,77 +10,139 @@ def readNumber(line, index):
             if flag == 1:
                 keta *= 0.1
         index += 1
-    token = {'type': 'NUMBER', 'number': number * keta, 'priority': 0}
+    token = {'type': 'NUMBER', 'number': number * keta, 'priority': 0, 'bracket': num}
     return token, index
 
 
-def readPlus(line, index):
-    token = {'type': 'PLUS', 'priority': 0}
+def readPlus(line, index, num):
+    token = {'type': 'PLUS', 'priority': 0, 'bracket': num, 'number': 'null'}
     return token, index + 1
 
 
-def readMinus(line, index):
-    token = {'type': 'MINUS', 'priority': 0}
+def readMinus(line, index, num):
+    token = {'type': 'MINUS', 'priority': 0, 'bracket': num, 'number': 'null'}
     return token, index + 1
 
-def readTimes(line, index):
-    token = {'type': 'TIMES', 'priority': 0}
+def readTimes(line, index, num):
+    token = {'type': 'TIMES', 'priority': 0, 'bracket': num, 'number': 'null'}
     return token, index + 1
 
-def readDivided(line, index):
-    token = {'type': 'DIVIDED', 'priority': 0}
+def readDivided(line, index, num):
+    token = {'type': 'DIVIDED', 'priority': 0, 'bracket': num, 'number': 'null'}
     return token, index + 1
+
 
 
 def tokenize(line):
     tokens = []
     index = 0
+    num = 0
+    count = 0
     while index < len(line):
         if line[index].isdigit():
-            (token, index) = readNumber(line, index)
+            (token, index) = readNumber(line, index, num)
         elif line[index] == '+':
-            (token, index) = readPlus(line, index)
+            (token, index) = readPlus(line, index, num)
         elif line[index] == '-':
-            (token, index) = readMinus(line, index)
+            (token, index) = readMinus(line, index, num)
         elif line[index] == '*':
-            (token, index) = readTimes(line, index)
+            (token, index) = readTimes(line, index, num)
         elif line[index] == '/':
-            (token, index) = readDivided(line, index)
+            (token, index) = readDivided(line, index, num)
+        elif line[index] == '(':
+            num += 1
+            index += 1
+            count += 1
+            continue
+        elif line[index] == ')':
+            num -= 1
+            index += 1
+            continue
         else:
             print('Invalid character found: ' + line[index])
             exit(1)
         tokens.append(token)
     return tokens
 
-
-
-def check_priority(tokens):
-    #*と/の連なった群に優先度をつける
+#優先度をつけたものをリストで括る「(」「)」→'bracket'の順位
+def make_list_B(tokens, count):#初期値count=0,count=0,1,2,....n(「()」の回数分)
+    token = []
+    new_tokens = []
+    num = count
     for index in range(len(tokens)):
+        if(tokens[index]['bracket'] >= num+1):
+            token.append(tokens[index])
+        if(tokens[index]['bracket'] == num):
+            if(len(token) == 0):
+                new_tokens.append(tokens[index])
+            else:
+                new_tokens.append(token)
+                new_tokens.append(tokens[index])
+                token = []
+    if(len(token) != 0):
+        new_tokens.append(token)
+
+    count += 1
+    #()の中に()がないかcheck
+    for index in range(len(new_tokens)):
+        if isinstance(new_tokens[index], list):#もしリストがあった場合
+            new_tokens[index] = make_list_B(new_tokens[index], count)#再帰
+    return new_tokens
+
+
+#字句に優先度をつける
+def check_priority(tokens):
+    for index in range(len(tokens) - 1):
+        if isinstance(tokens[index], list):#もしリストがあった場合(index番目)
+            tokens[index] = {'number': check_priority(tokens[index]),'priority': 0,'type': 'NUMBER'}#再帰
+        if isinstance(tokens[index + 1], list):#もしリストがあった場合(index+1番目)...★何故か？
+            tokens[index + 1] = {'number': check_priority(tokens[index + 1]),'priority': 0,'type': 'NUMBER'}#再帰
+        
         if(tokens[index]['type'] == 'TIMES' or tokens[index]['type'] == 'DIVIDED'):
-            tokens[index-1]['priority'] = 1
+            tokens[index - 1]['priority'] = 1
             tokens[index]['priority'] = 1
-            tokens[index+1]['priority'] = 1
+            tokens[index + 1]['priority'] = 1#★ここで次のトークンを調べたいから
+            
     return tokens
 
 
 
-def make_list_in_list(tokens):
-    token1 = []
+#優先度をつけたものをリストで括る「*」「/」→'priority'の順位
+def make_list_TD(tokens):
+    token = []
     new_tokens = []
     for index in range(len(tokens)):
+        if isinstance(tokens[index]['number'], list):#もしリストがあった場合
+            tokens[index]['number'] = make_list_TD(tokens[index]['number'])#再帰
         if(tokens[index]['priority'] == 1):
-            token1.append(tokens[index])
+            token.append(tokens[index])
         if(tokens[index]['priority'] == 0):
-            if(len(token1) == 0):
+            if(len(token) == 0):
                 new_tokens.append(tokens[index])
             else:
-                new_tokens.append(token1)
+                new_tokens.append(token)
                 new_tokens.append(tokens[index])
-                token1 = []
-    if(len(token1) != 0):
-                new_tokens.append(token1)          
+                token = []
+    if(len(token) != 0):
+        new_tokens.append(token)
+        
     return new_tokens
+
+
+
+#'number':リスト→リストに変換
+def numberlist_to_list(tokens):
+
+    for index in range(len(tokens)):
+        if isinstance(tokens[index], list):#もしリストがあった場合
+            tokens[index] = numberlist_to_list(tokens[index])#再帰
+        elif isinstance(tokens[index]['number'], list):#もし'number':リストであった場合
+            tokens[index] = tokens[index]['number']
+            tokens[index] = numberlist_to_list(tokens[index])#再帰
+        
+    return tokens
+
+    
 
 
 
@@ -89,8 +151,8 @@ def evaluate(tokens):
     tokens.insert(0, {'type': 'PLUS'}) # Insert a dummy '+' token
     index = 1
     while index < len(tokens):
-        if isinstance(tokens[index], list):#もしリストがあった場合、再帰
-            tokens[index] = {'type' : 'NUMBER','number' : evaluate(tokens[index])}
+        if isinstance(tokens[index], list):#もしリストがあった場合
+            tokens[index] = {'type' : 'NUMBER','number' : evaluate(tokens[index])}#再帰
         if tokens[index]['type'] == 'NUMBER':
             if tokens[index - 1]['type'] == 'PLUS':
                 answer += tokens[index]['number']
@@ -108,9 +170,11 @@ def evaluate(tokens):
 
 def test(line, expectedAnswer):
     tokens = tokenize(line)
-    checked_tokens = check_priority(tokens)
-    enclose_tokens = make_list_in_list(checked_tokens)
-    actualAnswer = evaluate(enclose_tokens)
+    enclose_tokens1 = make_list_B(tokens,0)
+    checked_tokens = check_priority(enclose_tokens1)
+    enclose_tokens2 = make_list_TD(checked_tokens)
+    enclose_tokens3 = numberlist_to_list(enclose_tokens2)
+    actualAnswer = evaluate(enclose_tokens3)
     if abs(actualAnswer - expectedAnswer) < 1e-8:
         print("PASS! (%s = %f)" % (line, expectedAnswer))
     else:
@@ -129,6 +193,11 @@ def runTest():
     test("123.4+123*123/123", 246.4)
     test("1/2*4+1*5-5/1", 2)
     test("1/2*4*2*1/4+1*5/2-5/1", -1.5)
+    test("(1+3*2-3)*3+1-3*6", -5)
+    test("1-5+3*(2+1)", 5)
+    test("(2*(4+5*3)-2)*4+1", 145)
+    test("(3+9-4/3*(2*(4+5*3)-2))*4+1", -143)
+    test("(3+9-4/3*(2*(4+5*3)-2))*4.89+8.4653", -167.5747)
     print("==== Test finished! ====\n")
 
 runTest()
@@ -136,9 +205,11 @@ runTest()
 while True:
     line = input('> ')
     tokens = tokenize(line)#字句を分割する
-    checked_tokens = check_priority(tokens)#字句に優先度をつける
-    enclose_tokens = make_list_in_list(checked_tokens)#優先度をつけたものをリストで括る
-    answer = evaluate(enclose_tokens)
+    enclose_tokens1 = make_list_B(tokens,0)#優先度をつけたものをリストで括る「(」「)」→'bracket'の順位
+    checked_tokens = check_priority(enclose_tokens1)#字句に優先度をつける
+    enclose_tokens2 = make_list_TD(checked_tokens)#優先度をつけたものをリストで括る「*」「/」→'priority'の順位
+    enclose_tokens3 = numberlist_to_list(enclose_tokens2)#'number':リスト→リストに変換
+    answer = evaluate(enclose_tokens3)
     print("answer = %f\n" % answer)
 
 
