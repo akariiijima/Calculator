@@ -32,16 +32,15 @@ def readDivided(line, index, num):
     return token, index + 1
 
 
-
 def tokenize(line):
     tokens = []
     index = 0
     count = 0
+    #不必要な()がないか※例:(1+3)
     if(line[0] == '(' and line[len(line)-1] == ')'):
         num = -1
     else:
         num = 0
-    
     while index < len(line):
         if line[index].isdigit():
             (token, index) = readNumber(line, index, num)
