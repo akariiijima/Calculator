@@ -36,8 +36,12 @@ def readDivided(line, index, num):
 def tokenize(line):
     tokens = []
     index = 0
-    num = 0
     count = 0
+    if(line[0] == '(' and line[len(line)-1] == ')'):
+        num = -1
+    else:
+        num = 0
+    
     while index < len(line):
         if line[index].isdigit():
             (token, index) = readNumber(line, index, num)
@@ -65,7 +69,7 @@ def tokenize(line):
     return tokens
 
 #優先度をつけたものをリストで括る「(」「)」→'bracket'の順位
-def make_list_B(tokens, count):#初期値count=0,count=0,1,2,....n(「()」の回数分)
+def make_list_Bracket(tokens, count):#初期値count=0,count=0,1,2,....n(「()」の回数分)
     token = []
     new_tokens = []
     num = count
@@ -86,7 +90,7 @@ def make_list_B(tokens, count):#初期値count=0,count=0,1,2,....n(「()」の�
     #()の中に()がないかcheck
     for index in range(len(new_tokens)):
         if isinstance(new_tokens[index], list):#もしリストがあった場合
-            new_tokens[index] = make_list_B(new_tokens[index], count)#再帰
+            new_tokens[index] = make_list_Bracket(new_tokens[index], count)#再帰
     return new_tokens
 
 
@@ -108,12 +112,12 @@ def check_priority(tokens):
 
 
 #優先度をつけたものをリストで括る「*」「/」→'priority'の順位
-def make_list_TD(tokens):
+def make_list_TimesDivided(tokens):
     token = []
     new_tokens = []
     for index in range(len(tokens)):
         if isinstance(tokens[index]['number'], list):#もしリストがあった場合
-            tokens[index]['number'] = make_list_TD(tokens[index]['number'])#再帰
+            tokens[index]['number'] = make_list_TimesDivided(tokens[index]['number'])#再帰
         if(tokens[index]['priority'] == 1):
             token.append(tokens[index])
         if(tokens[index]['priority'] == 0):
@@ -170,9 +174,9 @@ def evaluate(tokens):
 
 def test(line, expectedAnswer):
     tokens = tokenize(line)
-    enclose_tokens1 = make_list_B(tokens,0)
+    enclose_tokens1 = make_list_Bracket(tokens,0)
     checked_tokens = check_priority(enclose_tokens1)
-    enclose_tokens2 = make_list_TD(checked_tokens)
+    enclose_tokens2 = make_list_TimesDivided(checked_tokens)
     enclose_tokens3 = numberlist_to_list(enclose_tokens2)
     actualAnswer = evaluate(enclose_tokens3)
     if abs(actualAnswer - expectedAnswer) < 1e-8:
@@ -203,6 +207,7 @@ def runTest():
     test("(3+9-4/3*(2*(4+5*3)-2))*4+1", -143)
     test("(3+9-4/3*(2*(4+5*3)-2))*4.89+8.4653", -167.5747)
     test("(3.2+(1+3/(((1.0*2+1)*9+1)*2+4.0)))*4+1", 18)
+    test("(3+4)", 7)
     print("==== Test finished! ====\n")
 
 runTest()
@@ -210,9 +215,9 @@ runTest()
 while True:
     line = input('> ')
     tokens = tokenize(line)#字句を分割する
-    enclose_tokens1 = make_list_B(tokens,0)#優先度をつけたものをリストで括る「(」「)」→'bracket'の順位
+    enclose_tokens1 = make_list_Bracket(tokens,0)#優先度をつけたものをリストで括る「(」「)」→'bracket'の順位
     checked_tokens = check_priority(enclose_tokens1)#字句に優先度をつける
-    enclose_tokens2 = make_list_TD(checked_tokens)#優先度をつけたものをリストで括る「*」「/」→'priority'の順位
+    enclose_tokens2 = make_list_TimesDivided(checked_tokens)#優先度をつけたものをリストで括る「*」「/」→'priority'の順位
     enclose_tokens3 = numberlist_to_list(enclose_tokens2)#'number':リスト→リストに変換
     answer = evaluate(enclose_tokens3)
     print("answer = %f\n" % answer)
